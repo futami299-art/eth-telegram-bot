@@ -6,7 +6,7 @@ const db = require('./database');
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const BOT_TOKEN = process.env.BOT_TOKEN || '8536388509:AAF2_J8tRu-aOwmzrBy5dh0Q6BkMX3h_YnU';
-const MINI_APP_URL = process.env.MINI_APP_URL || 'https://your-mini-app.railway.app';
+const MINI_APP_URL = process.env.MINI_APP_URL || 'eth-mini-app-production-cff7.up.railway.app';
 const PORT = process.env.PORT || 3000;
 const NOTIFICATION_DELAY_MS = 6 * 60 * 60 * 1000; // 6 hours
 
