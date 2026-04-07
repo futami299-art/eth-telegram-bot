@@ -5,7 +5,7 @@ const sqlite3 = require('sqlite3').verbose();
 const { open } = require('sqlite');
 
 const BOT_TOKEN = '8536388509:AAF2_J8tRu-aOwmzrBy5dh0Q6BkMX3h_YnU';
-const MINI_APP_URL = 'https://eth-mini-app-production.up.railway.app';
+const MINI_APP_URL = 'eth-mini-app-production-60a0.up.railway.app';
 
 let db;
 async function initDB() {
