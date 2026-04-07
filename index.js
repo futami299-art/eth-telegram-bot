@@ -4,7 +4,7 @@ const cron = require('node-cron');
 const { initDB, addUser, saveNotificationSchedule, getPendingNotifications, markNotificationSent } = require('./database');
 
 const BOT_TOKEN = '8536388509:AAF2_J8tRu-aOwmzrBy5dh0Q6BkMX3h_YnU';
-const MINI_APP_URL = process.env.MINI_APP_URL || 'https://eth-mini-app.up.railway.app';
+const MINI_APP_URL = process.env.MINI_APP_URL || 'eth-mini-app-production.up.railway.app';
 
 const bot = new Telegraf(BOT_TOKEN);
 const app = express();
