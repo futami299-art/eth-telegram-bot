@@ -1,63 +1,93 @@
-const sqlite3 = require('sqlite3').verbose();
-const { open } = require('sqlite');
+const Database = require('better-sqlite3');
+const path = require('path');
+
+const DB_PATH = path.join(__dirname, 'notifications.db');
 
 let db;
 
-async function initDB() {
-    db = await open({
-        filename: './users.db',
-        driver: sqlite3.Database
-    });
-    
-    await db.exec(`
-        CREATE TABLE IF NOT EXISTS users (
-            user_id INTEGER PRIMARY KEY,
-            username TEXT,
-            first_name TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        );
-        
-        CREATE TABLE IF NOT EXISTS scheduled_notifications (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            notify_at DATETIME,
-            status TEXT DEFAULT 'pending'
-        );
-    `);
-    
-    return db;
+function getDb() {
+  if (!db) {
+    db = new Database(DB_PATH);
+    db.pragma('journal_mode = WAL');
+    initSchema();
+  }
+  return db;
 }
 
-async function addUser(userId, username, firstName) {
-    await db.run(
-        'INSERT OR IGNORE INTO users (user_id, username, first_name) VALUES (?, ?, ?)',
-        userId, username || '', firstName || ''
+function initSchema() {
+  const database = getDb();
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS scheduled_notifications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id TEXT NOT NULL,
+      chat_id TEXT NOT NULL,
+      scheduled_at INTEGER NOT NULL,
+      sent INTEGER DEFAULT 0,
+      created_at INTEGER DEFAULT (strftime('%s', 'now'))
     );
-}
 
-async function saveNotificationSchedule(userId, notifyAt) {
-    await db.run(
-        'INSERT INTO scheduled_notifications (user_id, notify_at) VALUES (?, ?)',
-        userId, notifyAt
+    CREATE TABLE IF NOT EXISTS users (
+      user_id TEXT PRIMARY KEY,
+      chat_id TEXT NOT NULL,
+      first_name TEXT,
+      username TEXT,
+      registered_at INTEGER DEFAULT (strftime('%s', 'now'))
     );
+  `);
 }
 
-async function getPendingNotifications() {
-    const now = new Date().toISOString();
-    return await db.all(
-        "SELECT * FROM scheduled_notifications WHERE status = 'pending' AND notify_at <= ?",
-        now
-    );
+function saveUser(userId, chatId, firstName, username) {
+  const database = getDb();
+  const stmt = database.prepare(`
+    INSERT INTO users (user_id, chat_id, first_name, username)
+    VALUES (?, ?, ?, ?)
+    ON CONFLICT(user_id) DO UPDATE SET
+      chat_id = excluded.chat_id,
+      first_name = excluded.first_name,
+      username = excluded.username
+  `);
+  stmt.run(String(userId), String(chatId), firstName || '', username || '');
 }
 
-async function markNotificationSent(id) {
-    await db.run('UPDATE scheduled_notifications SET status = "sent" WHERE id = ?', id);
+function scheduleNotification(userId, chatId, delayMs) {
+  const database = getDb();
+  const scheduledAt = Date.now() + delayMs;
+
+  // Remove any existing unsent notification for this user
+  const del = database.prepare(`
+    DELETE FROM scheduled_notifications
+    WHERE user_id = ? AND sent = 0
+  `);
+  del.run(String(userId));
+
+  const stmt = database.prepare(`
+    INSERT INTO scheduled_notifications (user_id, chat_id, scheduled_at)
+    VALUES (?, ?, ?)
+  `);
+  stmt.run(String(userId), String(chatId), scheduledAt);
 }
 
-module.exports = { 
-    initDB, 
-    addUser, 
-    saveNotificationSchedule, 
-    getPendingNotifications, 
-    markNotificationSent 
+function getDueNotifications() {
+  const database = getDb();
+  const now = Date.now();
+  const stmt = database.prepare(`
+    SELECT * FROM scheduled_notifications
+    WHERE sent = 0 AND scheduled_at <= ?
+  `);
+  return stmt.all(now);
+}
+
+function markNotificationSent(id) {
+  const database = getDb();
+  const stmt = database.prepare(`
+    UPDATE scheduled_notifications SET sent = 1 WHERE id = ?
+  `);
+  stmt.run(id);
+}
+
+module.exports = {
+  saveUser,
+  scheduleNotification,
+  getDueNotifications,
+  markNotificationSent
 };
