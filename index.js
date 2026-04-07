@@ -1,24 +1,18 @@
-require('dotenv').config();
 const { Telegraf, Markup } = require('telegraf');
 const express = require('express');
 const cron = require('node-cron');
 const { initDB, addUser, saveNotificationSchedule, getPendingNotifications, markNotificationSent } = require('./database');
 
-// Railway automatically provides PORT
-const BOT_TOKEN = process.env.BOT_TOKEN;
-const MINI_APP_URL = process.env.MINI_APP_URL;
+const BOT_TOKEN = '8536388509:AAF2_J8tRu-aOwmzrBy5dh0Q6BkMX3h_YnU';
+const MINI_APP_URL = process.env.MINI_APP_URL || 'https://eth-mini-app.up.railway.app';
 
 const bot = new Telegraf(BOT_TOKEN);
 const app = express();
 app.use(express.json());
 
-// Initialize database
 initDB();
 
-// ──────────────────────────────────────────────
-// TELEGRAM BOT COMMANDS
-// ──────────────────────────────────────────────
-
+// Bot Commands
 bot.start(async (ctx) => {
     const user = ctx.from;
     await addUser(user.id, user.username, user.first_name);
@@ -38,7 +32,7 @@ bot.start(async (ctx) => {
     );
 });
 
-// Send notification function
+// Notification send function
 async function sendRewardNotification(userId) {
     try {
         await bot.telegram.sendMessage(
@@ -59,10 +53,7 @@ async function sendRewardNotification(userId) {
     }
 }
 
-// ──────────────────────────────────────────────
-// API FOR MINI APP (Schedule notification)
-// ──────────────────────────────────────────────
-
+// API for Mini App
 app.post('/api/schedule-notification', async (req, res) => {
     const { user_id, notify_at } = req.body;
     
@@ -80,10 +71,7 @@ app.get('/api/health', (req, res) => {
     res.json({ status: 'ok' });
 });
 
-// ──────────────────────────────────────────────
-// CRON JOB - Check every minute
-// ──────────────────────────────────────────────
-
+// Cron job - check every minute
 cron.schedule('* * * * *', async () => {
     const pending = await getPendingNotifications();
     
@@ -93,17 +81,14 @@ cron.schedule('* * * * *', async () => {
     }
 });
 
-// ──────────────────────────────────────────────
-// START SERVER (Railway uses PORT)
-// ──────────────────────────────────────────────
-
+// Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`🌐 API server on port ${PORT}`);
 });
 
 bot.launch();
-console.log('🤖 Bot running');
+console.log('🤖 Bot running with token:', BOT_TOKEN.substring(0, 10) + '...');
 
 process.once('SIGINT', () => bot.stop('SIGINT'));
 process.once('SIGTERM', () => bot.stop('SIGTERM'));
